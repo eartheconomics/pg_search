@@ -246,6 +246,24 @@ describe "an ActiveRecord model which includes PgSearch" do
         ModelWithPgSearch.search_content(not_a_string).should == [foo]
       end
 
+      context "when chained onto itself" do
+        it "returns a scope" do
+          scope = ModelWithPgSearch.search_content("foo").search_content("bar")
+          scope.should be_an ActiveRecord::Relation
+        end
+
+        it "returns records that match both queries" do
+          included = [ModelWithPgSearch.create!(:content => 'foo bar'),
+                      ModelWithPgSearch.create!(:content => 'bar foo')]
+          excluded = [ModelWithPgSearch.create!(:content => 'foo'),
+                      ModelWithPgSearch.create!(:content => 'bar')]
+
+          results = ModelWithPgSearch.search_content("foo").search_content("bar")
+          results.should =~ included
+          results.should_not include(*excluded)
+        end
+      end
+
       context "when the column is not text" do
         with_model :ModelWithTimestamps do
           table do |t|

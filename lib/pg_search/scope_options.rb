@@ -13,12 +13,20 @@ module PgSearch
     end
 
     def apply(scope)
-      scope.select("#{quoted_table_name}.*, (#{rank}) AS pg_search_rank").where(conditions).order("pg_search_rank DESC, #{order_within_rank}").joins(joins)
+      if scope.select_values.any?
+        scope.except(:select).select(select).where(conditions).order(order).joins(joins)
+      else
+        scope.select(select).where(conditions).order(order).joins(joins)
+      end
     end
 
     private
 
     delegate :connection, :quoted_table_name, :sanitize_sql_array, :to => :@model
+
+    def select
+      "#{quoted_table_name}.*, (#{rank}) AS pg_search_rank"
+    end
 
     def conditions
       config.features.map do |feature_name, feature_options|
@@ -26,8 +34,8 @@ module PgSearch
       end.join(" OR ")
     end
 
-    def order_within_rank
-      config.order_within_rank || "#{primary_key} ASC"
+    def order
+      "pg_search_rank DESC, #{config.order_within_rank || "#{primary_key} ASC"}"
     end
 
     def primary_key
